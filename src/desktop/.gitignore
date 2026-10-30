@@ -1,0 +1,17 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/flightrender-desktop
+flightrender-desktop.so
+flightrender-desktop.dylib
+flightrender-desktop.dll
+libflightrender-desktop.a
+flightrender-desktop.a
+flightrender-desktop.lib
+flightrender-desktop-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst

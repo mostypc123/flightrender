@@ -1,0 +1,15 @@
+{
+	"description": "flightrender desktop app",
+	"dependencies": {
+		"vibe-d": "~>0.10.3",
+		"gtk-d": "~>3.11.0"
+	},
+	"authors": [
+		"mostypc123"
+	],
+	"copyright": "Copyright © 2026, mostypc123",
+	"license": "GPL-3.0-only",
+	"name": "flightrender-desktop",
+	"sourcePaths": ["."],
+	"libs": ["curl"]
+}
