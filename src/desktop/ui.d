@@ -9,6 +9,8 @@ import gtk.Label;
 import gtk.Stack;
 import gtk.StackSwitcher;
 import gtk.Widget;
+import gtk.Button;
+import gtk.MessageDialog;
 
 import gdk.Event;
 
@@ -19,15 +21,18 @@ import glib.Idle;
 
 import core.thread : Thread;
 import core.time : seconds;
-import std.net.curl : get, HTTP;
 import std.json : parseJSON;
 import std.stdio : writeln;
+import std.net.curl : HTTP, get;
+import core.stdc.stdlib : _Exit;
 
 import settings;
+import simbrief;
 
 enum url = "http://127.0.0.1:20757/test";
 
 Settings opts;
+Simbrief sbrief;
 
 Label statusLabel;
 
@@ -114,7 +119,7 @@ Widget settingsTab() {
   box.packStart(simbriefUserIdEntryLabel, false, false, 0);
   box.packStart(simbriefUserIdEntry, false, false, 0);
 
-  auto xplane11DirEntryLabel = new Label("X-Plane 11 installation directory:");
+  auto xplane11DirEntryLabel = new Label("X-Plane 11/12 installation directory:");
   auto xplane11DirEntry = new Entry;
 
   if ("Xplane11InstallDir" in opts.data)
@@ -137,12 +142,18 @@ void addTab(Stack stack, string id, string title, Widget content) {
 
 void start() {
   opts = new Settings;
+  sbrief = new Simbrief("SimbriefUserId" in opts.data ? opts.data["SimbriefUserId"].str : "");
 
   string[] args;
   Main.init(args);
 
   auto win = new MainWindow("Flightrender");
   win.setDefaultSize(1000, 600);
+
+  win.addOnDelete((Event e, Widget w) {
+    _Exit(0);
+    return false;
+  });
 
   auto box = new Box(GtkOrientation.VERTICAL, 0);
 
@@ -172,6 +183,8 @@ void start() {
   toolbar.insert(spacer, -1);
 
   auto flight = new Label("");
+  auto flightButtonToolItem = new ToolItem();
+  auto flightButton = new Button("Fly");
   string userid = ""; // will not work, therefore simbrief returns error and we dont show
   try {
     userid = opts.data["SimbriefUserId"].str;
@@ -179,12 +192,9 @@ void start() {
   bool show = false;
   auto flightItem = new ToolItem();
   flightItem.add(flight);
-  char[] response;
+  flightButtonToolItem.add(flightButton);
   try {
-    response = get(
-      "https://www.simbrief.com/api/xml.fetcher.php?userid=" ~ userid ~ "&json=1"
-    );
-    auto jsonResponse = parseJSON(cast(string) response);
+    auto jsonResponse = sbrief.lastGeneratedFlight();
     if (jsonResponse["fetch"]["status"].str != "Success") {} else {
       show = true;
 
@@ -192,12 +202,30 @@ void start() {
       string destination = jsonResponse["destination"]["icao_code"].str;
 
       flight.setMarkup("<span size='13000'>" ~ origin ~ " to " ~ destination ~ "</span>");
+
+      flightButton.addOnClicked((Button b) {
+        b.setLabel("Downloading...");
+        string message = sbrief.downloadAllUsableFPlanFormats(opts, jsonResponse);
+        auto dlg = new MessageDialog(
+          win,
+          GtkDialogFlags.MODAL,
+          GtkMessageType.INFO,
+          GtkButtonsType.OK,
+          message
+        );
+        dlg.run();
+        dlg.destroy();
+        b.setLabel("Fly");
+      });
     }
   } catch (Exception e) {
     writeln(e.msg);
   }
 
-  if (show) toolbar.insert(flightItem, -1);
+  if (show) {
+    toolbar.insert(flightItem, -1);
+    toolbar.insert(flightButtonToolItem, -1);
+  }
 
   box.packStart(toolbar, false, false, 0);
   box.packStart(stack, true, true, 0);

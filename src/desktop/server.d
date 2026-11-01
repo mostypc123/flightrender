@@ -1,6 +1,10 @@
 import vibe.vibe;
 import tracker;
 
+void stop() {
+  exitEventLoop();
+}
+
 void start() {
   auto tracked = new TrackedPlanes;
 
