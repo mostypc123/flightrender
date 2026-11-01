@@ -100,38 +100,34 @@ Widget homeTab() {
 }
 
 Widget settingsTab() {
+  Box createConfigEntry(Box box, string labelText, string key, ref Settings opts) {
+    auto label = new Label(labelText);
+    auto entry = new Entry;
+
+    if (key in opts.data)
+      entry.setText(opts.data[key].str);
+
+    entry.addOnChanged((e) {
+      opts.data[key] = e.getChars(0, -1);
+      opts.save();
+    });
+
+    box.packStart(label, false, false, 0);
+    box.packStart(entry, false, false, 0);
+
+    return box;
+  }
+
   auto box = new Box(GtkOrientation.VERTICAL, 8);
   auto heading = new Label("");
   heading.setMarkup("<span size='32000'>Settings</span>");
   box.packStart(heading, true, true, 0);
 
-  auto simbriefUserIdEntryLabel = new Label("Simbrief User ID:");
-  auto simbriefUserIdEntry = new Entry;
-
-  if ("SimbriefUserId" in opts.data)
-    simbriefUserIdEntry.setText(opts.data["SimbriefUserId"].str);
-
-  simbriefUserIdEntry.addOnChanged((e) {
-    opts.data["SimbriefUserId"] = e.getChars(0, -1);
-    opts.save();
-  });
-
-  box.packStart(simbriefUserIdEntryLabel, false, false, 0);
-  box.packStart(simbriefUserIdEntry, false, false, 0);
-
-  auto xplane11DirEntryLabel = new Label("X-Plane 11/12 installation directory:");
-  auto xplane11DirEntry = new Entry;
-
-  if ("Xplane11InstallDir" in opts.data)
-    xplane11DirEntry.setText(opts.data["Xplane11InstallDir"].str);
-
-  xplane11DirEntry.addOnChanged((e) {
-    opts.data["Xplane11InstallDir"] = e.getChars(0, -1);
-    opts.save();
-  });
-
-  box.packStart(xplane11DirEntryLabel, false, false, 0);
-  box.packStart(xplane11DirEntry, false, false, 0);
+  createConfigEntry(box, "SimBrief User ID:", "SimbriefUserId", opts);
+  createConfigEntry(box, "X-Plane 11 installation directory:", "Xplane11InstallDir", opts);
+  createConfigEntry(
+    box, "JARDesign Airbus installation directories, separated by a semicolon (;):", "JARDesignAirbusDirs", opts
+  );
 
   return box;
 }

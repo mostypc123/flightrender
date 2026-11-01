@@ -2,7 +2,7 @@ class Simbrief {
   import std.json;
   import std.net.curl : get, HTTP;
   import std.file : mkdirRecurse, write;
-  import std.array : join;
+  import std.array : join, split;
 
   import settings;
 
@@ -36,7 +36,22 @@ class Simbrief {
 
       mkdirRecurse(xplaneDir ~ "/Output/FMS plans/");
       write(xplaneDir ~ "/Output/FMS plans/" ~ origin ~ destination ~ ".fms", cast(string) get(downloadUrl));
+
       done ~= "X-Plane 11/12";
+    }
+
+    if ("JARDesignAirbusDirs" in opts.data) {
+      // jar (JARDesign Airbus)
+      string instDirs = opts.data["JARDesignAirbusDirs"].str;
+      foreach (dir; instDirs.split(";")) {
+        auto relativeUrl = downloads["jar"]["link"].str;
+        auto downloadUrl = baseUrl ~ relativeUrl;
+
+        mkdirRecurse(dir ~ "/FlightPlans/");
+        write(dir ~ "/FlightPlans/" ~ origin ~ destination ~ ".txt", cast(string) get(downloadUrl));
+      }
+
+      done ~= "JARDesign Airbus(es)";
     }
 
     return done.length == 0 ? (
