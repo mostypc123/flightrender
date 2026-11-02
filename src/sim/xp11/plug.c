@@ -1,4 +1,5 @@
 // this was copied from my first ever plugin i made and slightly edited since i didnt wanna make new code for absolutely everything
+// also this piece of code uhh sucks very much i am sorry for any mental breakdowns of code reviewers this may have caused
 
 #include <string.h>
 #include <stdio.h>

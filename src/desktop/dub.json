@@ -4,12 +4,25 @@
 		"vibe-d": "~>0.10.3",
 		"gtk-d": "~>3.11.0"
 	},
-	"authors": [
-		"mostypc123"
-	],
+	"authors": ["mostypc123"],
 	"copyright": "Copyright © 2026, mostypc123",
 	"license": "GPL-3.0-only",
 	"name": "flightrender-desktop",
+
 	"sourcePaths": ["."],
-	"libs": ["curl"]
+	"libs": [
+    "curl",
+    "osmgpsmap-1.0"
+	],
+	"preBuildCommands": [
+	  "echo -e '\\e[92m    Building\\e[0m map.c'",
+    "cc -c map.c -o map.o $$(pkg-config --cflags gtk+-3.0 osmgpsmap-1.0)"
+	],
+  "sourceFiles": [
+    "map.o"
+  ],
+  "postBuildCommands": [
+    "echo -e '\\e[92m    Clearing\\e[0m map.o'",
+    "rm -f map.o"
+  ]
 }

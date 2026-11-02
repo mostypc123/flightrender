@@ -19,6 +19,8 @@ import gtkc.gtktypes;
 import glib.Timeout;
 import glib.Idle;
 
+import gobject.ObjectG;
+
 import core.thread : Thread;
 import core.time : seconds;
 import std.json : parseJSON;
@@ -29,6 +31,8 @@ import core.stdc.stdlib : _Exit;
 import settings;
 import simbrief;
 import tracker;
+
+extern(C) GtkWidget* map_widget_new();
 
 enum url = "http://127.0.0.1:20757/test";
 
@@ -135,6 +139,10 @@ Widget settingsTab() {
 
 Widget mapTab() {
   auto box = new Box(GtkOrientation.VERTICAL, 8);
+
+  auto raw = map_widget_new();
+  auto map = ObjectG.getDObject!(Widget)(raw);
+  box.packStart(map, true, true, 0);
 
   void reload() {
     // todo: map
