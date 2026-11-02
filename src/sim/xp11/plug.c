@@ -1,4 +1,4 @@
-// this was copied from my first ever plugin i made since i didnt wanna make new code for absolutely everything
+// this was copied from my first ever plugin i made and slightly edited since i didnt wanna make new code for absolutely everything
 
 #include <string.h>
 #include <stdio.h>
@@ -94,49 +94,11 @@ static XPLMDataRef lat_ref;
 static XPLMDataRef spd_ref;
 
 static XPLMMenuID g_menu = NULL;
-static XPWidgetID g_uuid_window = NULL;
 static XPWidgetID g_url_window = NULL;
 static XPWidgetID g_url_field = NULL;
 static XPWidgetID g_url_save = NULL;
 
-static char g_uuid[37] = "";
 static char g_url[256] = "http://localhost:20757"; // it is indeed a boeing 757-200 refence.
-
-#if IBM
-#include <windows.h>
-#include <bcrypt.h>
-#if defined(_MSC_VER)
-#pragma comment(lib, "bcrypt")
-#endif
-static int uuid4(char *out) {
-  unsigned char b[16];
-  BCRYPT_ALG_HANDLE alg;
-  if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_RNG_ALGORITHM, NULL, 0) != 0) return -1;
-  BCryptGenRandom(alg, b, sizeof b, 0);
-  BCryptCloseAlgorithmProvider(alg, 0);
-  b[6] = (b[6] & 0x0f) | 0x40;
-  b[8] = (b[8] & 0x3f) | 0x80;
-  snprintf(out, 37, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-           b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-           b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
-  return 0;
-}
-#else
-#include <stdlib.h>
-static int uuid4(char *out) {
-  FILE *f = fopen("/dev/urandom", "rb");
-  if (!f) return -1;
-  unsigned char b[16];
-  if (fread(b, 1, sizeof b, f) != sizeof b) { fclose(f); return -1; }
-  fclose(f);
-  b[6] = (b[6] & 0x0f) | 0x40;
-  b[8] = (b[8] & 0x3f) | 0x80;
-  snprintf(out, 37, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-           b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-           b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
-  return 0;
-}
-#endif
 
 static int label_draw_handler(XPWidgetMessage inMessage, XPWidgetID inWidget,
                               intptr_t inParam1, intptr_t inParam2) {
@@ -181,29 +143,6 @@ static int widget_handler(XPWidgetMessage inMessage, XPWidgetID inWidget,
   return 0;
 }
 
-static void show_uuid_dialog(void) {
-  if (!g_uuid_window) {
-    g_uuid_window = XPCreateWidget(300, 500, 700, 380, 1,
-                                   "Flightrender Tracker - UUID", 1, NULL,
-                                   xpWidgetClass_MainWindow);
-    XPSetWidgetProperty(g_uuid_window, xpProperty_MainWindowType,
-                        xpMainWindowStyle_Translucent);
-    XPSetWidgetProperty(g_uuid_window, xpProperty_MainWindowHasCloseBoxes, 1);
-    XPAddWidgetCallback(g_uuid_window, widget_handler);
-
-    create_label(312, 455, 688, 437, "Flight UUID:", g_uuid_window);
-    create_label(312, 432, 688, 414,
-                 g_uuid[0] ? g_uuid : "unavailable", g_uuid_window);
-    {
-      XPWidgetID close = XPCreateWidget(455, 395, 545, 377, 1, "Close", 0,
-                                        g_uuid_window, xpWidgetClass_Button);
-      XPSetWidgetProperty(close, xpProperty_ButtonType, xpPushButton);
-    }
-  } else {
-    XPShowWidget(g_uuid_window);
-  }
-}
-
 static void show_url_dialog(void) {
   if (!g_url_window) {
     g_url_window = XPCreateWidget(300, 500, 700, 355, 1,
@@ -237,9 +176,7 @@ static void show_url_dialog(void) {
 
 static void menu_handler(void *inMenuRef, void *inItemRef) {
   (void)inMenuRef;
-  if ((intptr_t)inItemRef == 1) {
-    show_uuid_dialog();
-  } else if ((intptr_t)inItemRef == 2) {
+  if ((intptr_t)inItemRef == 2) {
     show_url_dialog();
   }
 }
@@ -250,8 +187,7 @@ static void create_menu(void) {
   g_menu = XPLMCreateMenu("Flightrender Tracker", plugins, item,
                           menu_handler, NULL);
   if (!g_menu) return;
-  XPLMAppendMenuItem(g_menu, "UUID", (void *)(intptr_t)1, 1);
-  XPLMAppendMenuItem(g_menu, "URL", (void *)(intptr_t)2, 1);
+  XPLMAppendMenuItem(g_menu, "Set Server URL", (void *)(intptr_t)2, 1);
 }
 
 static void get_icao(char *out, int size) {
@@ -271,8 +207,8 @@ static float tick(float since_last, float since_loop, int counter, void *refcon)
   get_icao(pln, sizeof pln);
 
   snprintf(json, sizeof json,
-           "{\"uuid\":\"%s\",\"pln\":\"%s\",\"lat\":\"%.5f\",\"log\":\"%.5f\",\"spd\":%d}\n",
-           g_uuid, pln, lat, lon, spd);
+           "{\"pln\":\"%s\",\"lat\":\"%.5f\",\"log\":\"%.5f\",\"spd\":%d}\n",
+           pln, lat, lon, spd);
   XPLMDebugString(json);
 
   static const char fix[] = "/tracker/update";
@@ -287,18 +223,13 @@ static float tick(float since_last, float since_loop, int counter, void *refcon)
 PLUGIN_API int XPluginStart(char *name, char *sig, char *desc) {
   strcpy(name, "Flightrender Tracker");
   strcpy(sig, "Flightrender.tracker");
-  strcpy(desc, "Tracks your flighta");
+  strcpy(desc, "Tracks your flights");
 
 #if defined(HAVE_CURL)
   curl_global_init(CURL_GLOBAL_DEFAULT);
 #endif
 
-  if (uuid4(g_uuid) != 0) g_uuid[0] = '\0';
-
   XPLMDebugString("Flightrender.tracker: started\n");
-  XPLMDebugString("Flightrender.tracker: uuid ");
-  XPLMDebugString(g_uuid[0] ? g_uuid : "unavailable");
-  XPLMDebugString("\n");
 
   alt_ref = XPLMFindDataRef("sim/flightmodel/position/elevation");
   log_ref = XPLMFindDataRef("sim/flightmodel/position/longitude");
@@ -316,7 +247,6 @@ PLUGIN_API int XPluginStart(char *name, char *sig, char *desc) {
 PLUGIN_API void XPluginStop(void) {
   XPLMUnregisterFlightLoopCallback(tick, NULL);
   if (g_menu) { XPLMDestroyMenu(g_menu); g_menu = NULL; }
-  if (g_uuid_window) { XPDestroyWidget(g_uuid_window, 1); g_uuid_window = NULL; }
   if (g_url_window) { XPDestroyWidget(g_url_window, 1); g_url_window = NULL; }
 #if defined(HAVE_CURL)
   curl_global_cleanup();
@@ -329,7 +259,6 @@ PLUGIN_API int XPluginEnable(void) {
 }
 
 PLUGIN_API void XPluginDisable(void) {
-  if (g_uuid_window) XPHideWidget(g_uuid_window);
   if (g_url_window) XPHideWidget(g_url_window);
 }
 
