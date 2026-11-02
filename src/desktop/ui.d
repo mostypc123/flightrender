@@ -32,7 +32,10 @@ import settings;
 import simbrief;
 import tracker;
 
-extern(C) GtkWidget* map_widget_new();
+extern (C) { // map.c
+  GtkWidget* map_widget_new();
+  void map_widget_set_marker(double lat, double lon);
+}
 
 enum url = "http://127.0.0.1:20757/test";
 
@@ -40,6 +43,7 @@ Settings opts;
 Simbrief sbrief;
 
 Label statusLabel;
+Timeout mapTimer;
 
 bool checkStatus() {
   try {
@@ -145,12 +149,23 @@ Widget mapTab() {
   box.packStart(map, true, true, 0);
 
   void reload() {
-    // todo: map
+    import std.conv : to, ConvException;
+
+    try {
+      writeln("updating position on map");
+
+      auto lat = to!double(tracker.trackedPlane.lat);
+      auto lon = to!double(tracker.trackedPlane.log);
+
+      map_widget_set_marker(lat, lon);
+    } catch (ConvException e) {
+      writeln(e.msg ~ " -- This error is probably harmless and just mean you didnt start the sim or plugin yet.");
+    }
   }
 
   reload();
 
-  new Timeout(5000, {
+  mapTimer = new Timeout(5000, {
     reload();
     return true;
   });

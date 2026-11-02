@@ -26,7 +26,7 @@ void start() {
 
       tracker.trackedPlane.update(lat, log, pln, spd);
 
-      logInfo("Updated flight status");
+      logInfo("update: pln='%s' lat='%s' log='%s' spd=%s", pln, lat, log, spd);
     } catch (Exception e) {
       res.writeJsonBody(["status": "fail", "msg": e.msg]);
       return;
