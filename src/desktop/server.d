@@ -6,8 +6,6 @@ void stop() {
 }
 
 void start() {
-  auto tracked = new TrackedPlanes;
-
   auto router = new URLRouter;
 
   // i fucking hate all thsi fucking fullstack app dev fuckery
@@ -21,15 +19,14 @@ void start() {
   router.post("/tracker/update", (HTTPServerRequest req, HTTPServerResponse res) @trusted {
     auto json = req.json;
     try {
-      auto fid = json["uuid"].get!string;
       auto pln = json["pln"].get!string;
       auto lat = json["lat"].get!string;
       auto log = json["log"].get!string;
       auto spd = json["spd"].get!int;
 
-      tracked.updateOrAdd(lat, log, fid, pln, spd);
+      tracker.trackedPlane.update(lat, log, pln, spd);
 
-      logInfo("Updated " ~ fid);
+      logInfo("Updated flight status");
     } catch (Exception e) {
       res.writeJsonBody(["status": "fail", "msg": e.msg]);
       return;
@@ -41,22 +38,14 @@ void start() {
   router.post("/tracker/get", (HTTPServerRequest req, HTTPServerResponse res) @trusted {
     auto json = req.json;
 
-    string fid;
-
     try {
-      fid = json["uuid"].get!string;
-
-      auto p = tracked.indexOp(fid);
-
       res.writeJsonBody([
         "status": Json("ok"),
-        "pln": Json(p.name),
-        "lat": Json(p.lat),
-        "log": Json(p.log),
-        "spd": Json(p.spd)
+        "pln": Json(tracker.trackedPlane.name),
+        "lat": Json(tracker.trackedPlane.lat),
+        "log": Json(tracker.trackedPlane.log),
+        "spd": Json(tracker.trackedPlane.spd)
       ]);
-    } catch (IndexOpError) {
-      res.writeJsonBody(["status": "fail", "msg": "no such plane " ~ fid]);
     } catch (Exception e) {
       res.writeJsonBody(["status": "fail", "msg": e.msg]);
     }

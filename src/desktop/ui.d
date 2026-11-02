@@ -28,6 +28,7 @@ import core.stdc.stdlib : _Exit;
 
 import settings;
 import simbrief;
+import tracker;
 
 enum url = "http://127.0.0.1:20757/test";
 
@@ -132,6 +133,23 @@ Widget settingsTab() {
   return box;
 }
 
+Widget mapTab() {
+  auto box = new Box(GtkOrientation.VERTICAL, 8);
+
+  void reload() {
+    // todo: map
+  }
+
+  reload();
+
+  new Timeout(5000, {
+    reload();
+    return true;
+  });
+
+  return box;
+}
+
 void addTab(Stack stack, string id, string title, Widget content) {
   stack.addTitled(content, id, title);
 }
@@ -156,6 +174,7 @@ void start() {
   auto stack = new Stack();
   addTab(stack, "home", "Home", homeTab());
   addTab(stack, "settings", "Settings", settingsTab());
+  addTab(stack, "map", "Map", mapTab());
 
   auto switcher = new StackSwitcher();
   switcher.setStack(stack);
