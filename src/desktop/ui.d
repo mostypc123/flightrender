@@ -28,6 +28,7 @@ import std.stdio : writeln;
 import std.net.curl : HTTP, get;
 import core.stdc.stdlib : _Exit;
 import std.string : toStringz;
+import std.math : sin, cos, sqrt, asin, PI;
 
 import settings;
 import simbrief;
@@ -154,14 +155,39 @@ Widget mapTab() {
   auto map = ObjectG.getDObject!(Widget)(raw);
   box.packStart(map, true, true, 0);
 
+  double lastLat = 0.0000;
+  double lastLon = 0.0000;
+
   void reload() {
     import std.conv : to, ConvException;
 
     try {
       writeln("updating position on map");
 
+      double lLat = lastLat; double lLon = lastLon;
+
       auto lat = to!double(tracker.trackedPlane.lat);
       auto lon = to!double(tracker.trackedPlane.log);
+
+      lastLat = lat; lastLon = lon;
+
+      // i have no idea bro
+      double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        enum earthRadiusKm = 6371.0088;
+        enum toRad = PI / 180.0;
+
+        immutable dLat = (lat2 - lat1) * toRad;
+        immutable dLon = (lon2 - lon1) * toRad;
+
+        immutable a = sin(dLat / 2) ^^ 2
+                    + cos(lat1 * toRad) * cos(lat2 * toRad) * sin(dLon / 2) ^^ 2;
+
+        return 2 * earthRadiusKm * asin(sqrt(a));
+      }
+
+      if (haversineKm(lLat, lLon, lastLat, lastLon) < 30) {
+        map_widget_clear_planned_route();
+      }
 
       map_widget_set_marker(lat, lon);
     } catch (ConvException e) {
@@ -303,7 +329,7 @@ void start() {
             GtkDialogFlags.MODAL,
             GtkMessageType.QUESTION,
             GtkButtonsType.YES_NO,
-            "Write the plan to the map?"
+            "Write the plan to the map? (The plan will clear at 30 km to the destination or after app restart.)"
           );
 
           int response = dialog.run();
