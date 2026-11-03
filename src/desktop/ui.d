@@ -222,9 +222,7 @@ void start() {
 
   auto flight = new Label("");
   auto flightButtonToolItem = new ToolItem();
-  auto flightButton = new Button("Download");
-  auto flightReadButtonToolItem = new ToolItem();
-  auto flightReadButton = new Button("Route");
+  auto flightButton = new Button("Fly");
   string userid = ""; // will not work, therefore simbrief returns error and we dont show
   try {
     userid = opts.data["SimbriefUserId"].str;
@@ -233,7 +231,6 @@ void start() {
   auto flightItem = new ToolItem();
   flightItem.add(flight);
   flightButtonToolItem.add(flightButton);
-  flightReadButtonToolItem.add(flightReadButton);
   try {
     auto jsonResponse = sbrief.lastGeneratedFlight();
     if (jsonResponse["fetch"]["status"].str != "Success") {} else {
@@ -244,7 +241,7 @@ void start() {
 
       flight.setMarkup("<span size='13000'>" ~ origin ~ " to " ~ destination ~ "</span>");
 
-      flightButton.addOnClicked((Button b) {
+      void downloadGenerated() {
         string message = sbrief.downloadAllUsableFPlanFormats(opts, jsonResponse);
         auto dlg = new MessageDialog(
           win,
@@ -255,9 +252,9 @@ void start() {
         );
         dlg.run();
         dlg.destroy();
-      });
+      }
 
-      flightReadButton.addOnClicked((Button b) {
+      void latestGenerated() {
         string message = sbrief.readLatestGeneratedFlight(jsonResponse);
         auto dlg = new MessageDialog(
           win,
@@ -268,6 +265,28 @@ void start() {
         );
         dlg.run();
         dlg.destroy();
+      }
+
+      flightButton.addOnClicked((Button b) {
+        auto dialog = new MessageDialog(
+          win,
+          GtkDialogFlags.MODAL,
+          GtkMessageType.QUESTION,
+          GtkButtonsType.NONE,
+          "Which flight plan format do you want?"
+        );
+        dialog.addButton("Download", 1);
+        dialog.addButton("Manual entry", 2);
+        dialog.addButton("Cancel", ResponseType.CANCEL);
+
+        int response = dialog.run();
+        dialog.destroy();
+
+        if (response == 1) {
+          downloadGenerated();
+        } else if (response == 2) {
+          latestGenerated();
+        }
       });
     }
   } catch (Exception e) {
@@ -277,7 +296,6 @@ void start() {
   if (show) {
     toolbar.insert(flightItem, -1);
     toolbar.insert(flightButtonToolItem, -1);
-    toolbar.insert(flightReadButtonToolItem, -1);
   }
 
   box.packStart(toolbar, false, false, 0);
