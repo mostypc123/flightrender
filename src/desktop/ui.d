@@ -27,6 +27,7 @@ import std.json : parseJSON;
 import std.stdio : writeln;
 import std.net.curl : HTTP, get;
 import core.stdc.stdlib : _Exit;
+import std.string : toStringz;
 
 import settings;
 import simbrief;
@@ -35,6 +36,11 @@ import tracker;
 extern (C) { // map.c
   GtkWidget* map_widget_new();
   void map_widget_set_marker(double lat, double lon);
+  void map_widget_set_marker_with_text(double lat, double lon, const(char)* text);
+  void map_widget_clear_route(int also_remove_marker);
+  void map_widget_draw_route(const(double)* lats, const(double)* lons, int count);
+  void map_widget_add_to_route(const(char)* wpt_name, double lat, double lon);
+  void map_widget_clear_planned_route();
 }
 
 enum url = "http://127.0.0.1:20757/test";
@@ -254,8 +260,7 @@ void start() {
         dlg.destroy();
       }
 
-      void latestGenerated() {
-        string message = sbrief.readLatestGeneratedFlight(jsonResponse);
+      void latestGenerated(string message) {
         auto dlg = new MessageDialog(
           win,
           GtkDialogFlags.MODAL,
@@ -268,24 +273,47 @@ void start() {
       }
 
       flightButton.addOnClicked((Button b) {
-        auto dialog = new MessageDialog(
-          win,
-          GtkDialogFlags.MODAL,
-          GtkMessageType.QUESTION,
-          GtkButtonsType.NONE,
-          "Which flight plan format do you want?"
-        );
-        dialog.addButton("Download", 1);
-        dialog.addButton("Manual entry", 2);
-        dialog.addButton("Cancel", ResponseType.CANCEL);
+        auto plan = sbrief.readLatestGeneratedFlight(jsonResponse);
 
-        int response = dialog.run();
-        dialog.destroy();
+        {
+          auto dialog = new MessageDialog(
+            win,
+            GtkDialogFlags.MODAL,
+            GtkMessageType.QUESTION,
+            GtkButtonsType.NONE,
+            "Which flight plan format do you want?"
+          );
+          dialog.addButton("Download", 1);
+          dialog.addButton("Manual entry", 2);
+          dialog.addButton("Cancel", ResponseType.CANCEL);
 
-        if (response == 1) {
-          downloadGenerated();
-        } else if (response == 2) {
-          latestGenerated();
+          int response = dialog.run();
+          dialog.destroy();
+
+          if (response == 1) {
+            downloadGenerated();
+          } else if (response == 2) {
+            latestGenerated(plan.briefing);
+          }
+        }
+
+        {
+          auto dialog = new MessageDialog(
+            win,
+            GtkDialogFlags.MODAL,
+            GtkMessageType.QUESTION,
+            GtkButtonsType.YES_NO,
+            "Write the plan to the map?"
+          );
+
+          int response = dialog.run();
+          dialog.destroy();
+
+          if (response == ResponseType.YES) {
+            foreach (wpt; plan.waypoints) {
+              map_widget_add_to_route(wpt.name.toStringz(), wpt.lat, wpt.lon);
+            }
+          }
         }
       });
     }
