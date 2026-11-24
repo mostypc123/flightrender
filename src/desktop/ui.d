@@ -11,6 +11,7 @@ import gtk.StackSwitcher;
 import gtk.Widget;
 import gtk.Button;
 import gtk.MessageDialog;
+import gtk.ScrolledWindow;
 
 import gdk.Event;
 
@@ -23,11 +24,14 @@ import gobject.ObjectG;
 
 import core.thread : Thread;
 import core.time : seconds;
-import std.json : parseJSON;
+import std.json;
 import std.stdio : writeln;
 import std.net.curl : HTTP, get;
 import core.stdc.stdlib : _Exit;
 import std.string : toStringz;
+import std.conv : to;
+import std.ascii : isDigit;
+import std.array : split;
 
 import settings;
 import simbrief;
@@ -179,6 +183,93 @@ Widget mapTab() {
   return box;
 }
 
+Widget logbookTab() {
+  auto root = new Box(GtkOrientation.VERTICAL, 8);
+  auto box = new Box(GtkOrientation.VERTICAL, 8);
+
+  void addLogbookItem(Box addTo, string from, string to, string time, string type) {
+    auto itemBox = new Box(GtkOrientation.HORIZONTAL, 8);
+    itemBox.setHalign(GtkAlign.START);
+    itemBox.setMarginStart(12);
+
+    auto label = new Label("");
+    label.setMarkup("<span size='14000'>" ~ from ~ " to " ~ to ~ " took " ~ time ~ " in a " ~ type ~ "</span>");
+
+    itemBox.packStart(label, false, false, 0);
+    addTo.packStart(itemBox, false, false, 0);
+  }
+
+  try {
+    foreach (entry; opts.data["logbook"].array) {
+      auto from = entry["from"].get!string;
+      auto dest = entry["to"].get!string;
+      auto type = entry["type"].get!string;
+      int timeHours = entry["time"]["hrs"].get!int;
+      int timeMins = entry["time"]["mins"].get!int;
+      string time = to!string(timeHours) ~ ":" ~ to!string(timeMins);
+
+      addLogbookItem(box, from, dest, time, type);
+    }
+  } catch (Exception e) {
+    writeln("couldnt load logbook: ", e.msg);
+  }
+
+  auto addBar = new Box(GtkOrientation.HORIZONTAL, 8);
+  addBar.setMarginStart(12);
+  addBar.setMarginEnd(12);
+  addBar.setMarginBottom(12);
+
+  auto from = new Entry;
+  from.setPlaceholderText("From (ICAO)");
+  auto dest = new Entry;
+  dest.setPlaceholderText("To (ICAO)");
+  auto time = new Entry;
+  time.setPlaceholderText("Time (XX:XX)");
+  auto type = new Entry;
+  type.setPlaceholderText("Aircraft type (ICAO)");
+  auto addBtn = new Button("Add flight");
+  addBar.packStart(from, false, false, 0);
+  addBar.packStart(dest, false, false, 0);
+  addBar.packStart(time, false, false, 0);
+  addBar.packStart(type, false, false, 0);
+  addBar.packStart(addBtn, false, false, 0);
+
+  addBtn.addOnClicked((Button b) {
+    foreach (ch; time.getText()) {
+      if (ch != ':' && !ch.isDigit()) {
+        return;
+      }
+    }
+
+    auto hm = time.getText().split(":");
+
+    if ("logbook" !in opts.data) {
+      opts.data["logbook"] = JSONValue(cast(JSONValue[])[]);
+    }
+
+    JSONValue entry = [
+      "from": JSONValue(from.getText()),
+      "to": JSONValue(dest.getText()),
+      "type": JSONValue(type.getText()),
+      "time": JSONValue(["hrs": JSONValue(to!int(hm[0])), "mins": JSONValue(to!int(hm[1]))])
+    ];
+
+    opts.data["logbook"].array ~= entry;
+    opts.save();
+
+    addLogbookItem(box, from.getText(), dest.getText(), time.getText(), type.getText());
+    box.showAll();
+  });
+
+  auto scroll = new ScrolledWindow();
+  scroll.add(box);
+  root.packStart(scroll, true, true, 0);
+
+  root.packEnd(addBar, false, false, 0);
+
+  return root;
+}
+
 void addTab(Stack stack, string id, string title, Widget content) {
   stack.addTitled(content, id, title);
 }
@@ -204,6 +295,7 @@ void start() {
   addTab(stack, "home", "Home", homeTab());
   addTab(stack, "settings", "Settings", settingsTab());
   addTab(stack, "map", "Map", mapTab());
+  addTab(stack, "logbook", "Logbook", logbookTab());
 
   auto switcher = new StackSwitcher();
   switcher.setStack(stack);

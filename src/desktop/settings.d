@@ -27,9 +27,7 @@ class Settings {
       write(file, json);
       writeln("INFO: Saving config:\n  " ~ json);
     }
-  }
 
-  public {
     string file;
   }
 }
